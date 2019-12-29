@@ -2,7 +2,7 @@
 <?php
 declare(strict_types=1);
 
-use ScriptFUSION\Steam250\Shared\Application;
+use ScriptFUSION\Steam250\Storage\Application;
 
 // 0 => Composer deployment. 1 => Local checkout.
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $autoload) {

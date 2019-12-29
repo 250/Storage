@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace ScriptFUSION\Steam250\Shared\Storage;
+namespace ScriptFUSION\Steam250\Storage\Storage;
 
 use Hypweb\Flysystem\GoogleDrive\GoogleDriveAdapter;
 use League\Flysystem\Filesystem;
-use ScriptFUSION\Steam250\Shared\Log\LoggerFactory;
+use ScriptFUSION\Steam250\Log\LoggerFactory;
 
 final class ReadWriteStorageFactory
 {

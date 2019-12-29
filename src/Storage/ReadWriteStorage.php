@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ScriptFUSION\Steam250\Shared\Storage;
+namespace ScriptFUSION\Steam250\Storage\Storage;
 
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ScriptFUSION\Steam250\Shared\Command;
+namespace ScriptFUSION\Steam250\Storage\Command;
 
-use ScriptFUSION\Steam250\Shared\Storage\ReadWriteStorageFactory;
+use ScriptFUSION\Steam250\Storage\Storage\ReadWriteStorageFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;

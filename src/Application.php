@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace ScriptFUSION\Steam250\Shared;
+namespace ScriptFUSION\Steam250\Storage;
 
-use ScriptFUSION\Steam250\Shared\Command\DeleteCommand;
-use ScriptFUSION\Steam250\Shared\Command\DownloadCommand;
-use ScriptFUSION\Steam250\Shared\Command\DownloadLastTwoCommand;
-use ScriptFUSION\Steam250\Shared\Command\MoveCommand;
-use ScriptFUSION\Steam250\Shared\Command\UploadCommand;
+use ScriptFUSION\Steam250\Storage\Command\DeleteCommand;
+use ScriptFUSION\Steam250\Storage\Command\DownloadCommand;
+use ScriptFUSION\Steam250\Storage\Command\DownloadLastTwoCommand;
+use ScriptFUSION\Steam250\Storage\Command\MoveCommand;
+use ScriptFUSION\Steam250\Storage\Command\UploadCommand;
 
 final class Application
 {
