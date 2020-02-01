@@ -98,7 +98,7 @@ class ReadWriteStorage
             $this->logger->info("Uploading: \"$filename\".");
 
             return $this->filesystem->put(
-                $file['basename'] ?: "$directory/$filename",
+                $file['basename'] ?? "$directory/$filename",
                 file_get_contents($filespec)
             );
         });
