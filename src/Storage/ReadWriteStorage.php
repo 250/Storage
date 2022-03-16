@@ -13,9 +13,6 @@ use ScriptFUSION\Type\StringType;
  */
 class ReadWriteStorage
 {
-    private const BASENAME = '$v["basename"]';
-    private const FILENAME = '$v["filename"]';
-
     private const TYPE_FILE = 'file';
     private const TYPE_DIRECTORY = 'dir';
 
@@ -334,12 +331,12 @@ class ReadWriteStorage
             ->where(static function (array $v): bool {
                 return StringType::startsWith($v['filename'], '20');
             })
-            ->orderByDescending(self::FILENAME)
+            ->orderByDescending(self::filename())
             ->first()
         ;
 
         $dayDir = from($files = $this->filesystem->listContents($yearMonthDir['basename']))
-            ->orderByDescending(self::FILENAME)
+            ->orderByDescending(self::filename())
             ->first()
         ;
 
@@ -351,7 +348,7 @@ class ReadWriteStorage
 
     /**
      * Fetches the previous database snapshot by searching the previous seven days' snapshot folders for the latest
-     * snapshot in each. Typically it will find the latest snapshot from yesterday, unless the build was missed.
+     * snapshot in each. Typically, it will find the latest snapshot from yesterday, unless the build was missed.
      *
      * @return array Database snapshot file information.
      */
@@ -363,13 +360,13 @@ class ReadWriteStorage
             ->where(static function (array $v): bool {
                 return StringType::startsWith($v['filename'], '20');
             })
-            ->orderByDescending(self::FILENAME)
+            ->orderByDescending(self::filename())
             ->first()
         ;
 
         $day = from($files = $this->filesystem->listContents($yearMonthData['basename']))
-            ->orderByDescending(self::FILENAME)
-            ->select(self::FILENAME)
+            ->orderByDescending(self::filename())
+            ->select(self::filename())
             ->first()
         ;
 
@@ -384,7 +381,7 @@ class ReadWriteStorage
             ->where(static function (array $v) use ($yesterdayYearMonth): bool {
                 return $v['filename'] === $yesterdayYearMonth;
             })
-            ->select(self::BASENAME)
+            ->select(self::basename())
             ->single();
 
         try {
@@ -392,7 +389,7 @@ class ReadWriteStorage
                 ->where(static function (array $v) use ($yesterdayDay): bool {
                     return $v['filename'] === $yesterdayDay;
                 })
-                ->select(self::BASENAME)
+                ->select(self::basename())
                 ->first();
         } catch (\UnexpectedValueException $exception) {
             if ($tries++ <= 7) {
@@ -425,7 +422,7 @@ class ReadWriteStorage
     private function findLatestBuildDatabaseSnapshot(string $dayDir): array
     {
         $buildDir = from($files = $this->filesystem->listContents($dayDir))
-            ->orderByDescending('$v["filename"]')
+            ->orderByDescending(self::filename())
             ->first()
         ;
 
@@ -449,5 +446,15 @@ class ReadWriteStorage
     private static function isFile(array $file): bool
     {
         return $file['type'] === self::TYPE_FILE;
+    }
+
+    private static function filename(): \Closure
+    {
+        return fn ($v) => $v['filename'];
+    }
+
+    private static function basename(): \Closure
+    {
+        return fn ($v) => $v['basename'];
     }
 }
