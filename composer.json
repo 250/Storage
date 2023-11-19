@@ -8,12 +8,11 @@
         }
     ],
     "require": {
-        "php": "^8",
+        "php": "^8.1",
         "250/log": "dev-master",
-        "athari/yalinqo": "^2",
         "eloquent/enumeration": "^6",
         "nao-pon/flysystem-google-drive": "^1.1.9",
-        "phptype/string": "^1",
+        "nikic/iter": "^2.3",
         "symfony/console": "^3|^4|^5|^6"
     },
     "autoload": {

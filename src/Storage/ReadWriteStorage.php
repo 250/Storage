@@ -5,7 +5,6 @@ namespace ScriptFUSION\Steam250\Storage\Storage;
 
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;
-use ScriptFUSION\Type\StringType;
 
 /**
  * Provides read/write storage that always writes to a dedicated write directory (or subdirectory thereof) and always
@@ -16,14 +15,8 @@ class ReadWriteStorage
     private const TYPE_FILE = 'file';
     private const TYPE_DIRECTORY = 'dir';
 
-    private $filesystem;
-
-    private $logger;
-
-    public function __construct(Filesystem $filesystem, LoggerInterface $logger)
+    public function __construct(private Filesystem $filesystem, private LoggerInterface $logger)
     {
-        $this->filesystem = $filesystem;
-        $this->logger = $logger;
     }
 
     /**
@@ -48,15 +41,15 @@ class ReadWriteStorage
             $files = [$this->filesystem->getMetadata($fileOrDirectoryPath)];
         }
 
-        return from($files)
-            // Only download files. Recursion not supported yet.
-            ->where(\Closure::fromCallable([__CLASS__, 'isFile']))
-            ->all(function (array $file): bool {
+        return \iter\all(
+            function (array $file): bool {
                 $this->logger->info("Downloading: \"$file[name]\".");
 
                 return (bool)file_put_contents($file['name'], $this->filesystem->read($file['path']));
-            })
-        ;
+            },
+            // Only download files. Recursion not supported yet.
+            \iter\filter(self::isFile(...), $files)
+        );
     }
 
     /**
@@ -74,19 +67,18 @@ class ReadWriteStorage
         $directory = $this->createDirectories($parent);
 
         if (is_dir($fileSpec)) {
-            $files = from(new \DirectoryIterator($fileSpec))
-                ->where(static function (\DirectoryIterator $iterator): bool {
-                    return $iterator->isFile();
-                })
-                ->select(static function (\DirectoryIterator $iterator): string {
-                    return $iterator->getPathname();
-                })
-            ;
+            $files = iterator_to_array(\iter\map(
+                fn (\DirectoryIterator $iterator) => $iterator->getPathname(),
+                \iter\filter(
+                    fn (\DirectoryIterator $iterator) => $iterator->isFile(),
+                    new \DirectoryIterator($fileSpec),
+                ),
+            ));
         } else {
             $files = [$fileSpec];
         }
 
-        return from($files)->all(function ($filespec) use ($directory): bool {
+        return \iter\all(function ($filespec) use ($directory): bool {
             $filename = basename($filespec);
 
             // Find any existing file.
@@ -98,7 +90,7 @@ class ReadWriteStorage
                 $file['basename'] ?? "$directory/$filename",
                 file_get_contents($filespec)
             );
-        });
+        }, $files);
     }
 
     /**
@@ -131,10 +123,8 @@ class ReadWriteStorage
         $destinationId = $this->createDirectoriesArray($directories, StorageRoot::READ_DIR());
 
         // Move files.
-        if (!from($files)
-            // Only download files. Recursion not supported yet.
-            ->where(\Closure::fromCallable([__CLASS__, 'isFile']))
-            ->all(function (array $file) use ($destinationId): bool {
+        if (!\iter\all(
+            function (array $file) use ($destinationId): bool {
                 // Find any existing file and delete it.
                 if ($destinationFile = $this->findFile($file['name'], $destinationId)) {
                     // We have to delete because renaming to existing file ID just deletes the source file.
@@ -144,28 +134,33 @@ class ReadWriteStorage
                 $this->logger->info("Moving: \"$file[name]\".");
 
                 return $this->filesystem->rename($file['path'], "$destinationId/$file[name]");
-            })
-        ) {
+            },
+            \iter\filter(self::isFile(...), $files),
+        )) {
             return false;
         }
 
         // Remove empty write directories.
-        return from(array_reverse($fileOrDirectoryIds = self::filespecToDirectoryList($fileOrDirectoryPath)))
-            // Skip root directory.
-            ->except([reset($fileOrDirectoryIds)])
-            // Must skip files otherwise the file we just moved is deleted.
-            ->where(function (string $fileOrDirectory) {
-                return !self::isFile($this->filesystem->getMetadata($fileOrDirectory));
-            })
-            ->takeWhile(function (string $directory): bool {
-                return !$this->filesystem->listContents($directory);
-            })
-            ->all(function (string $directory): bool {
+
+        return \iter\all(
+            function (string $directory): bool {
                 $this->logger->info("Removing empty directory: \"$directory\".");
 
                 return $this->filesystem->delete($directory);
-            })
-        ;
+            },
+            \iter\takeWhile(
+                // Directory is empty.
+                fn ($directory) => !$this->filesystem->listContents($directory),
+                \iter\filter(
+                    // Must skip files otherwise the file we just moved is deleted.
+                    fn ($fileOrDirectory) => !self::isFile($this->filesystem->getMetadata($fileOrDirectory)),
+                    array_reverse(
+                        // Skip root directory.
+                        array_slice(self::filespecToDirectoryList($fileOrDirectoryPath), 1)
+                    )
+                )
+            )
+        );
     }
 
     public function delete(string $file): bool
@@ -187,17 +182,20 @@ class ReadWriteStorage
             throw new \RuntimeException("Cannot delete from directory: \"$parent\": no such directory.");
         }
 
-        return from($this->filesystem->listContents($directoryPath))
-            ->where(\Closure::fromCallable([__CLASS__, 'isFile']))
-            ->where(static function (array $file) use ($pattern): bool {
-                return (bool)preg_match("[$pattern]", $file['name']);
-            })
-            ->all(function (array $file): bool {
+        return \iter\all(
+            function (array $file): bool {
                 $this->logger->info("Deleting: \"$file[name]\".");
 
                 return $this->filesystem->delete($file['basename']);
-            })
-        ;
+            },
+            \iter\filter(
+                fn (array $file) => preg_match("[$pattern]", $file['name']),
+                \iter\filter(
+                    self::isFile(...),
+                    $this->filesystem->listContents($directoryPath)
+                )
+            )
+        );
     }
 
     public function downloadLastTwoSnapshots(): void
@@ -279,16 +277,15 @@ class ReadWriteStorage
      */
     private function find(string $filename, string $parent = '', string $type = null): ?array
     {
-        return from($files = $this->filesystem->listContents($parent))
-            ->where(static function (array $v) use ($filename, $type): bool {
-                if ($type !== null && $v['type'] !== $type) {
-                    return false;
-                }
+        $files = $this->filesystem->listContents($parent);
 
-                return $v['name'] === $filename;
-            })
-            ->singleOrDefault()
-        ;
+        return \iter\search(static function (array $v) use ($filename, $type): bool {
+            if ($type !== null && $v['type'] !== $type) {
+                return false;
+            }
+
+            return $v['name'] === $filename;
+        }, $files);
     }
 
     private function findFile(string $dirName, string $parent = ''): ?array
@@ -325,20 +322,7 @@ class ReadWriteStorage
 
     private function fetchLatestDatabaseSnapshot(): array
     {
-        $dataDir = $this->findRootDir();
-
-        $yearMonthDir = from($files = $this->filesystem->listContents($dataDir))
-            ->where(static function (array $v): bool {
-                return StringType::startsWith($v['filename'], '20');
-            })
-            ->orderByDescending(self::filename())
-            ->first()
-        ;
-
-        $dayDir = from($files = $this->filesystem->listContents($yearMonthDir['basename']))
-            ->orderByDescending(self::filename())
-            ->first()
-        ;
+        [$dayDir, $yearMonthDir] = $this->findLatestDayDir();
 
         $fileInfo = $this->findLatestBuildDatabaseSnapshot($dayDir['basename']);
         $fileInfo['vdir'] = "$yearMonthDir[filename]/$dayDir[filename]/$fileInfo[vdir]";
@@ -356,19 +340,8 @@ class ReadWriteStorage
     {
         $dataDir = $this->findRootDir();
 
-        $yearMonthData = from($files = $this->filesystem->listContents($dataDir))
-            ->where(static function (array $v): bool {
-                return StringType::startsWith($v['filename'], '20');
-            })
-            ->orderByDescending(self::filename())
-            ->first()
-        ;
-
-        $day = from($files = $this->filesystem->listContents($yearMonthData['basename']))
-            ->orderByDescending(self::filename())
-            ->select(self::filename())
-            ->first()
-        ;
+        [$dayDir, $yearMonthData] = $this->findLatestDayDir();
+        $day = $dayDir['filename'];
 
         $tries = 1;
         retry:
@@ -377,34 +350,40 @@ class ReadWriteStorage
         $yesterdayYearMonth = $yesterday->format('Ym');
         $yesterdayDay = $yesterday->format('d');
 
-        $yearMonthDir = from($files = $this->filesystem->listContents($dataDir))
-            ->where(static function (array $v) use ($yesterdayYearMonth): bool {
-                return $v['filename'] === $yesterdayYearMonth;
-            })
-            ->select(self::basename())
-            ->single();
+        $files = $this->filesystem->listContents($dataDir);
+        $yearMonthDir = \iter\search(fn (array $v) => $v['filename'] === $yesterdayYearMonth, $files)['basename'];
 
-        try {
-            $dayDir = from($files = $this->filesystem->listContents($yearMonthDir))
-                ->where(static function (array $v) use ($yesterdayDay): bool {
-                    return $v['filename'] === $yesterdayDay;
-                })
-                ->select(self::basename())
-                ->first();
-        } catch (\UnexpectedValueException $exception) {
+        $files = $this->filesystem->listContents($yearMonthDir);
+        if (!$dayDir = \iter\search(fn (array $v) => $v['filename'] === $yesterdayDay, $files)) {
             if ($tries++ <= 7) {
                 fwrite(STDERR, "No match for $yesterdayYearMonth/$yesterdayDay...\n");
 
                 goto retry;
             }
 
-            throw $exception;
+            throw new \RuntimeException('Cannot fetch previous database snapshot: none built in the last 7 days!');
         }
 
-        $fileInfo = $this->findLatestBuildDatabaseSnapshot($dayDir);
+        $fileInfo = $this->findLatestBuildDatabaseSnapshot($dayDir['basename']);
         $fileInfo['vdir'] = "$yesterdayYearMonth/$yesterdayDay/$fileInfo[vdir]";
 
         return $fileInfo;
+    }
+
+    private function findLatestDayDir(): array
+    {
+        $dataDir = $this->findRootDir();
+
+        $files = $this->filesystem->listContents($dataDir);
+
+        $yearMonthDir = array_filter($files, fn(array $v) => str_starts_with($v['filename'], '20'));
+        usort($yearMonthDir, self::sortByFilename());
+        $yearMonthDir = end($yearMonthDir);
+
+        $files = $this->filesystem->listContents($yearMonthDir['basename']);
+        usort($files, self::sortByFilename());
+
+        return [end($files), $yearMonthDir];
     }
 
     private function findRootDir(): string
@@ -421,16 +400,14 @@ class ReadWriteStorage
      */
     private function findLatestBuildDatabaseSnapshot(string $dayDir): array
     {
-        $buildDir = from($files = $this->filesystem->listContents($dayDir))
-            ->orderByDescending(self::filename())
-            ->first()
-        ;
+        $files = $this->filesystem->listContents($dayDir);
+        usort($files, self::sortByFilename());
+        $buildDir = reset($files);
 
-        return from($files = $this->filesystem->listContents($buildDir['basename']))
-            ->where(static function (array $v): bool {
-                return $v['name'] === 'steam.sqlite';
-            })
-            ->single() + ['vdir' => $buildDir['filename']]
+        $files = $this->filesystem->listContents($buildDir['basename']);
+
+        return \iter\search(fn (array $v) => $v['name'] === 'steam.sqlite', $files)
+            + ['vdir' => $buildDir['filename']]
         ;
     }
 
@@ -448,13 +425,8 @@ class ReadWriteStorage
         return $file['type'] === self::TYPE_FILE;
     }
 
-    private static function filename(): \Closure
+    private static function sortByFilename(): \Closure
     {
-        return fn ($v) => $v['filename'];
-    }
-
-    private static function basename(): \Closure
-    {
-        return fn ($v) => $v['basename'];
+        return static fn ($a, $b) => $a['filename'] <=> $b['filename'];
     }
 }
