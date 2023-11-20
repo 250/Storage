@@ -10,7 +10,6 @@
     "require": {
         "php": "^8.1",
         "250/log": "dev-master",
-        "eloquent/enumeration": "^6",
         "nao-pon/flysystem-google-drive": "^1.1.9",
         "nikic/iter": "^2.3",
         "symfony/console": "^3|^4|^5|^6"

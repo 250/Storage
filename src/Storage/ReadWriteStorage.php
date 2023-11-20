@@ -104,7 +104,7 @@ class ReadWriteStorage
     {
         $this->logger->info("Moving: \"$filespec\"...");
 
-        if (!$fileOrDirectoryPath = $this->findLeafObject($filespec, StorageRoot::WRITE_DIR())) {
+        if (!$fileOrDirectoryPath = $this->findLeafObject($filespec, StorageRoot::WRITE_DIR)) {
             throw new \RuntimeException("Cannot move file \"$filespec\": not found.");
         }
 
@@ -120,7 +120,7 @@ class ReadWriteStorage
         }
 
         // Mirror directory structure at destination.
-        $destinationId = $this->createDirectoriesArray($directories, StorageRoot::READ_DIR());
+        $destinationId = $this->createDirectoriesArray($directories, StorageRoot::READ_DIR);
 
         // Move files.
         if (!\iter\all(
@@ -167,7 +167,7 @@ class ReadWriteStorage
     {
         $this->logger->info("Deleting: \"$file\"...");
 
-        if (!$filePath = $this->findLeafObject($file, StorageRoot::WRITE_DIR())) {
+        if (!$filePath = $this->findLeafObject($file, StorageRoot::WRITE_DIR)) {
             throw new \RuntimeException("Cannot delete file: \"$file\": not found.");
         }
 
@@ -178,7 +178,7 @@ class ReadWriteStorage
     {
         $this->logger->info("Deleting all files matching pattern: \"$pattern\" in \"$parent\"...");
 
-        if (!$directoryPath = $this->findLeafObject($parent, StorageRoot::WRITE_DIR())) {
+        if (!$directoryPath = $this->findLeafObject($parent, StorageRoot::WRITE_DIR)) {
             throw new \RuntimeException("Cannot delete from directory: \"$parent\": no such directory.");
         }
 
@@ -232,10 +232,10 @@ class ReadWriteStorage
         return $this->createDirectoriesArray(self::filespecToDirectoryList($directories));
     }
 
-    private function createDirectoriesArray(array $directories, StorageRoot $root = null): string
+    private function createDirectoriesArray(array $directories, StorageRoot $root = StorageRoot::WRITE_DIR): string
     {
         $directories = array_merge(
-            self::filespecToDirectoryList($root ? $root->getDirectory() : StorageRoot::WRITE_DIR),
+            self::filespecToDirectoryList($root->getDirectory()),
             $directories
         );
 
@@ -298,10 +298,10 @@ class ReadWriteStorage
         return $this->find($dirName, $parent, self::TYPE_DIRECTORY);
     }
 
-    private function findLeafObject(string $filespec, StorageRoot $root = null): ?string
+    private function findLeafObject(string $filespec, StorageRoot $root = StorageRoot::READ_DIR): ?string
     {
         $directories = array_merge(
-            self::filespecToDirectoryList($root ? $root->getDirectory() : StorageRoot::READ_DIR),
+            self::filespecToDirectoryList($root->getDirectory()),
             self::filespecToDirectoryList($filespec)
         );
 
@@ -388,7 +388,7 @@ class ReadWriteStorage
 
     private function findRootDir(): string
     {
-        return $this->findDirectory(StorageRoot::READ_DIR)['basename'];
+        return $this->findDirectory(StorageRoot::READ_DIR->getDirectory())['basename'];
     }
 
     /**

@@ -27,7 +27,7 @@ final class DownloadCommand extends Command
     {
         return (int)!(new ReadWriteStorageFactory)->create()->download(
             $input->getArgument('fileOrDirectory'),
-            $input->getOption('write-dir') ? StorageRoot::WRITE_DIR() : StorageRoot::READ_DIR()
+            $input->getOption('write-dir') ? StorageRoot::WRITE_DIR : StorageRoot::READ_DIR
         );
     }
 }
