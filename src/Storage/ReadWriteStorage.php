@@ -402,7 +402,7 @@ class ReadWriteStorage
     {
         $files = $this->filesystem->listContents($dayDir);
         usort($files, self::sortByFilename());
-        $buildDir = reset($files);
+        $buildDir = end($files);
 
         $files = $this->filesystem->listContents($buildDir['basename']);
 
