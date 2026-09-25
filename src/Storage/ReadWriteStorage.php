@@ -275,7 +275,7 @@ class ReadWriteStorage
      *
      * @return array|null File metadata if found, otherwise null.
      */
-    private function find(string $filename, string $parent = '', string $type = null): ?array
+    private function find(string $filename, string $parent = '', ?string $type = null): ?array
     {
         $files = $this->filesystem->listContents($parent);
 
