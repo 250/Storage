@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace ScriptFUSION\Steam250\Storage\Storage;
 
 use Google\Service\Drive;
-use Hypweb\Flysystem\GoogleDrive\GoogleDriveAdapter;
 use League\Flysystem\Filesystem;
+use Masbug\Flysystem\GoogleDriveAdapter;
 use ScriptFUSION\Steam250\Log\LoggerFactory;
 
 final class ReadWriteStorageFactory
@@ -25,7 +25,7 @@ final class ReadWriteStorageFactory
                     new Drive($client),
                     options: [
                         // Permanently delete files instead of moving to trash.
-                        'deleteAction' => 'delete',
+                        'usePermanentDelete' => true,
                     ]
                 )
             ),

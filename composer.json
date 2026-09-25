@@ -10,7 +10,7 @@
     "require": {
         "php": "^8.1",
         "250/log": "dev-master",
-        "diecoding/flysystem-google-drive": "^1",
+        "masbug/flysystem-google-drive-ext": "^2",
         "nikic/iter": "^2.3",
         "symfony/console": "^3|^4|^5|^6"
     },
